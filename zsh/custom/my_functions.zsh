@@ -1,29 +1,3 @@
-# .bashrc script for everyone
-
-export PATH=$PATH:$HOME/devtools/:~/bin
-export OSMETA=$HOME/repos/osmeta
-export PREBUILT=$OSMETA/prebuilt
-export TOOLS=$OSMETA/osmeta/tools
-export WINDOWS=$OSMETA/osmeta/platform/windows
-export FBSOURCE=$HOME/fbsource
-export FBOBJC=$FBSOURCE/fbobjc
-export ANDROID_SDK=$HOME/Library/Android/sdk
-export ANDROID_SDK_TOOLS=$ANDROID_SDK/tools
-export OSDERIVED_DATA=$HOME/Library/Developer/Xcode/DerivedData
-# needs to be hardcoded as it will be used on the devserver
-export LOCAL_HOME="/Users/mnovakovic/"
-
-export PATH=$PATH:$ANDROID_SDK/platform-tools:$ANDROID_SDK_TOOLS:~/buck/bin
-
-alias os='cd $OSMETA'
-alias osr='cd $OSMETA/osmeta'
-alias inst='cd $FBOBJC/Apps/Instagram'
-alias ez='cd ~/fbsource/fbobjc && ~/fbsource/fbobjc/Tools/osmeta/ezmode'
-
-export OSLLDB=~/repos/osmeta/prebuilt/devbin/lldb
-export EDITOR=vim
-export VISUAL=vim
-
 function cdapp {
   if [ $# -ne 1 ];
     then echo "Specify only one param -- the folder. For example Instagram."
@@ -64,19 +38,6 @@ function osbuildandinstallsdk {
   else
     os && make $1 sdk osmeta_runtime && osactivatesdk
   fi
-}
-
-function osinstallruntimeapk {
-  os && adb uninstall com.osmeta.runtime && adb install -r ./build/Release+Asserts/android-arm/osmeta/platform/android/runtime/Runtime.apk
-}
-
-function osbuildandinstallruntimeapk {
-  os && make Release+Asserts/android-arm sdk runtime osmeta_runtime && adb uninstall com.osmeta.runtime && adb install -r ./build/Release+Asserts/android-arm/osmeta/platform/android/runtime/Runtime.apk
-}
-
-function osactivatesdk {
-  os
-  ./osmeta/tools/dev-activate.sh $1
 }
 
 function delete_dlls_in_winupaentry {
@@ -322,9 +283,9 @@ function osftproject {
         PLATFORM_NAME=$(echo $1 | awk -F/ '{print $2}')
         BUILD_TYPE=$(echo $1 | awk -F/ '{print $1}')
 
-        PROJECT_NAME="FTCalendar"
+        PROJECT_NAME="PICatalog"
         OSMETA_REPO_DIR="$HOME/repos/osmeta"
-        IOS_PROJECT_PATH="$HOME/repos/FTCalendar/"
+        IOS_PROJECT_PATH="$OSMETA/demo/osmeta/PlatformIntegration/PICatalog/"
         USER_LIBRARY_DIR="$HOME/Library"
         DERIVED_DATA_DIR="$USER_LIBRARY_DIR/Developer/Xcode/DerivedData"
 
@@ -394,151 +355,20 @@ function osftproject {
         make $1 sdk runtime && osactivatesdk && \
         cd $IOS_PROJECT_PATH && \
         rm -rf $IOS_OSMETA_BUILD_DIR && \
-        $XCODEBUILD -sdk $OSMETA_SDK -arch $OSMETA_ARCHITECTURE -configuration $OSMETA_XCODEBUILD_CONFIGURATION -project FTCalendar.xcodeproj TOOLCHAINS=com.facebook.osmeta.stable.noasserts && \
+        $XCODEBUILD -sdk $OSMETA_SDK -arch $OSMETA_ARCHITECTURE -configuration $OSMETA_XCODEBUILD_CONFIGURATION -project PICatalog.xcodeproj TOOLCHAINS=com.facebook.osmeta.stable.noasserts && \
         rm -rf ./output/ && mkdir output && \
-        $XCRUN -n --sdk $OSMETA_SDK PackageApplication --no-appx $(find $IOS_OSMETA_BUILD_DIR -name FTCalendar.app) -o $IOS_PROJECT_PATH\output && \
+        $XCRUN -n --sdk $OSMETA_SDK PackageApplication --no-appx $(find $IOS_OSMETA_BUILD_DIR -name PICatalog.app) -o $IOS_PROJECT_PATH\output && \
         cd ~/repos/osmeta && \
         make $1 WinUAPEntry_runtime && \
         cd $IOS_PROJECT_PATH && \
-        cp -r $IOS_PROJECT_PATH/output/* ~/repos/osmeta/osmeta/platform/windows/WinUAPEntry/WinUAPEntry/ && \
-        cp $IOS_PROJECT_PATH/AppIcon40x40.png $(find $IOS_OSMETA_BUILD_DIR -name FTCalendar.app) && \
+        \cp -Rf $IOS_PROJECT_PATH/output/* ~/repos/osmeta/osmeta/platform/windows/WinUAPEntry/WinUAPEntry/
+        #\cp -f $IOS_PROJECT_PATH/AppIcon40x40.png $(find $IOS_OSMETA_BUILD_DIR -name PICatalog.app) &&
         cd $IOS_PROJECT_PATH/output/ && \
-        $XCRUN -n --sdk $OSMETA_SDK PackageApplication $(find $IOS_OSMETA_BUILD_DIR -name FTCalendar.app) -c "$($XCRUN -n -sdk $OSMETA_SDK --show-sdk-path)/$OSMETA_ARCHITECTURE/Support/resources/WinUAPEntry_TemporaryKey.pfx" --dev-installer -o ./FTCalendar.zip && \
+        $XCRUN -n --sdk $OSMETA_SDK PackageApplication $(find $IOS_OSMETA_BUILD_DIR -name PICatalog.app) -c "$($XCRUN -n -sdk $OSMETA_SDK --show-sdk-path)/$OSMETA_ARCHITECTURE/Support/resources/WinUAPEntry_TemporaryKey.pfx" --dev-installer -o ~/tmp/PICatalog.zip && \
         mkdir "$OUTPUT_DIRECTORY" && \
-        unzip -o ~/repos/FTCalendar/output/FTCalendar.zip -d $OUTPUT_DIRECTORY && \
+        unzip -o ~/tmp/PICatalog.zip -d $OUTPUT_DIRECTORY && \
         $HOME/repos/osmeta/osmeta/tools/appx_unpack.py "$OUTPUT_DIRECTORY/App.appx" "$OUTPUT_DIRECTORY/appx_unpacked" && \
-        cat $OUTPUT_DIRECTORY/appx_unpacked/AppxManifest.xml && \
+        # cat $OUTPUT_DIRECTORY/appx_unpacked/AppxManifest.xml && \
         osr
     fi
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##########
-
-
-
-
-function osftprojectosxdebug() {
-  os && make Debug/Darwin-x86 sdk runtime && osactivatesdk && \
-  cd ~/repos/FTCalendar/ && \
-  rm -rf ./build/Debug-osmeta-osx && \
-  xcodebuild -sdk osmeta-osx-Debug -arch i386 -configuration Debug -project FTCalendar.xcodeproj  TOOLCHAINS=com.facebook.osmeta.stable.noasserts && \
-  rm -rf ./output/ && \
-  mkdir output && \
-  xcrun -n --sdk osmeta-osx-Debug PackageApplication ./build/Debug-osmeta-osx/FTCalendar.app -o output && \
-  os && make Debug/Darwin-x86 WinUAPEntry_runtime && \
-  cd ~/repos/FTCalendar && \
-  cp -r ~/repos/FTCalendar/output/* ~/repos/osmeta/osmeta/platform/windows/WinUAPEntry/WinUAPEntry/ && \
-  cp ~/repos/FTCalendar/AppIcon40x40.png ~/repos/FTCalendar/build/Debug-osmeta-osx/FTCalendar.app && \
-  cd ~/repos/FTCalendar/output/ && xcrun -n --sdk osmeta-osx-Debug PackageApplication ../build/Debug-osmeta-osx/FTCalendar.app -c "$(xcrun -n -sdk osmeta-osx-Debug --show-sdk-path)/i386/Support/resources/WinUAPEntry_TemporaryKey.pfx" --dev-installer -o ./FTCalendar.zip && \
-  rm -f ~/tmp/FTCalendar.zip && \
-  rm -rf XCRUN_OUTPUT_DEBUG_OSX && \
-  mkdir XCRUN_OUTPUT_DEBUG_OSX && \
-  unzip -o ~/repos/FTCalendar/output/FTCalendar.zip -d ~/tmp/XCRUN_OUTPUT_DEBUG_OSX
-  osr
-}
-
-function osftprojectwindebug() {
-  os && make Debug/WinStore-x86 sdk runtime && osactivatesdk && \
-  cd ~/repos/FTCalendar/ && \
-  rm -rf ./build/Debug-osmeta-winstore && \
-  xcodebuild -sdk osmeta-winstore-Debug -arch i386 -configuration Debug -project FTCalendar.xcodeproj  TOOLCHAINS=com.facebook.osmeta.stable.noasserts && \
-  rm -rf ./output/ && \
-  mkdir output && \
-  xcrun -n --sdk osmeta-winstore-Debug PackageApplication --no-appx ./build/Debug-osmeta-winstore/FTCalendar.app -o output && \
-  os && make Debug/WinStore-x86 WinUAPEntry_runtime && \
-  cd ~/repos/FTCalendar && \
-  cp -r ~/repos/FTCalendar/output/* ~/repos/osmeta/osmeta/platform/windows/WinUAPEntry/WinUAPEntry/ && \
-  cp ~/repos/FTCalendar/AppIcon40x40.png ~/repos/FTCalendar/build/Debug-osmeta-winstore/FTCalendar.app && \
-  cd ~/repos/FTCalendar/output/ && xcrun -n --sdk osmeta-winstore-Debug PackageApplication ../build/Debug-osmeta-winstore/FTCalendar.app -c "$(xcrun -n -sdk osmeta-winstore-Debug --show-sdk-path)/i386/Support/resources/WinUAPEntry_TemporaryKey.pfx" --dev-installer -o ./FTCalendar.zip && \
-  rm -f ~/tmp/FTCalendar.zip && \
-  rm -rf XCRUN_OUTPUT_DEBUG_WINSTORE && \
-  mkdir XCRUN_OUTPUT_DEBUG_WINSTORE && \
-  unzip -o ~/repos/FTCalendar/output/FTCalendar.zip -d ~/tmp/XCRUN_OUTPUT_DEBUG_WINSTORE
-  osr
-}
-
-function osftprojectwinrelease() {
-  os && make NonCompactRelease/WinStore-x86 sdk runtime && osactivatesdk && \
-  cd ~/repos/FTCalendar/ && \
-  rm -rf ./build/* && \
-  xcodebuild -sdk osmeta-winstore-NonCompactRelease -arch i386 -configuration NonCompactRelease -project FTCalendar.xcodeproj TOOLCHAINS=com.facebook.osmeta.stable.noasserts && \
-  rm -rf ./output/ && \
-  mkdir output && \
-  xcrun -n --sdk osmeta-winstore-NonCompactRelease PackageApplication --no-appx ./build/Release-osmeta-winstore/FTCalendar.app -o output && \
-  os && make NonCompactRelease/WinStore-x86 WinUAPEntry_runtime && \
-  cd ~/repos/FTCalendar && \
-  cp -r ~/repos/FTCalendar/output/* ~/repos/osmeta/osmeta/platform/windows/WinUAPEntry/WinUAPEntry/ && \
-  cp ~/repos/FTCalendar/AppIcon40x40.png ~/repos/FTCalendar/build/Release-osmeta-winstore/FTCalendar.app && \
-  cd ~/repos/FTCalendar/output/ && xcrun -n --sdk osmeta-winstore-NonCompactRelease PackageApplication ../build/Release-osmeta-winstore/FTCalendar.app -c "$(xcrun -n -sdk osmeta-winstore-NonCompactRelease --show-sdk-path)/i386/Support/resources/WinUAPEntry_TemporaryKey.pfx" --dev-installer -o ./FTCalendar.zip && \
-  rm -f ~/tmp/FTCalendar.zip && \
-  rm -rf XCRUN_OUTPUT && \
-  mkdir XCRUN_OUTPUT && \
-  rm -rf ~/tmp/XCRUN_OUTPUT && \
-  unzip -o ~/repos/FTCalendar/output/FTCalendar.zip -d ~/tmp/XCRUN_OUTPUT && \
-  osr
-}
-
-function osftprojectwindebugphone() {
-  os && make Debug/WinPhone-arm sdk runtime && osactivatesdk && \
-  cd ~/repos/FTCalendar/ && \
-  rm -rf ./build/Debug-osmeta-winphone && \
-  xcodebuild -sdk osmeta-winphone-Debug -arch armv7 -configuration Debug -project FTCalendar.xcodeproj clean build && \
-  rm -rf ./output/ && \
-  mkdir output && \
-  xcrun -n --sdk osmeta-winphone-Debug PackageApplication --no-appx ./build/Debug-osmeta-winphone/FTCalendar.app -o output && \
-  os && make Debug/WinPhone-arm WinUAPEntry_runtime && \
-  cd ~/repos/FTCalendar && \
-  cp -r ~/repos/FTCalendar/output/* ~/repos/osmeta/osmeta/platform/windows/WinUAPEntry/WinUAPEntry/ && \
-  cp ~/repos/FTCalendar/AppIcon40x40.png ~/repos/FTCalendar/build/Debug-osmeta-winphone/FTCalendar.app && \
-  cd ~/repos/FTCalendar/output/ && xcrun -n --sdk osmeta-winphone-Debug PackageApplication ../build/Debug-osmeta-winphone/FTCalendar.app -c "$(xcrun -n -sdk osmeta-winphone-Debug --show-sdk-path)/armv7/Support/resources/WinUAPEntry_TemporaryKey.pfx" --dev-installer -o ./FTCalendar.zip && \
-  rm -f ~/tmp/FTCalendar.zip && \
-  rm -rf XCRUN_OUTPUT_DEBUG_PHONE && \
-  mkdir XCRUN_OUTPUT_DEBUG_PHONE && \
-  unzip -o ~/repos/FTCalendar/output/FTCalendar.zip -d ~/tmp/XCRUN_OUTPUT_DEBUG_PHONE
-}
-
-function osftprojectwinreleasephone() {
-  os && make Release/WinPhone-arm sdk runtime && osactivatesdk && \
-  cd ~/repos/FTCalendar/ && \
-  rm -rf ./build/Release-osmeta-winphone && \
-  xcodebuild -sdk osmeta-winphone -arch armv7 -configuration Release -project FTCalendar.xcodeproj clean build && \
-  rm -rf ./output/ && \
-  mkdir output && \
-  xcrun -n --sdk osmeta-winphone PackageApplication --no-appx ./build/osmeta-winphone/FTCalendar.app -o output && \
-  os && make Release/WinPhone-arm WinUAPEntry_runtime && \
-  cd ~/repos/FTCalendar && \
-  cp -r ~/repos/FTCalendar/output/* ~/repos/osmeta/osmeta/platform/windows/WinUAPEntry/WinUAPEntry/ && \
-  cp ~/repos/FTCalendar/AppIcon40x40.png ~/repos/FTCalendar/build/Debug-osmeta-winphone/FTCalendar.app && \
-  cd ~/repos/FTCalendar/output/ && xcrun -n --sdk osmeta-winphone PackageApplication ../build/osmeta-winphone/FTCalendar.app -c "$(xcrun -n -sdk osmeta-winphone --show-sdk-path)/armv7/Support/resources/WinUAPEntry_TemporaryKey.pfx" --dev-installer -o ./FTCalendar.zip && \
-  rm -f ~/tmp/FTCalendar.zip && \
-  rm -rf XCRUN_OUTPUT && \
-  mkdir XCRUN_OUTPUT && \
-  unzip -o ~/repos/FTCalendar/output/FTCalendar.zip -d ~/tmp/XCRUN_OUTPUT
 }
