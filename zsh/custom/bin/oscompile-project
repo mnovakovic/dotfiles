@@ -1,0 +1,195 @@
+#!/usr/bin/env python2.7
+# Copyright 2013-present Facebook. All Rights Reserved.
+
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+
+def doStuff(args):
+    print args
+    # todo - export enviroinment functions
+    osmeta_root_dir = os.environ["OSMETA"]
+    if len(osmeta_root_dir) == 0:
+        print("$OSMETA needs to be set!")
+        exit(1)
+    DERIVED_DATA_DIR="{}/Library/Developer/Xcode/DerivedData".\
+                     format(os.environ["HOME"])
+    if args.project_file == "":
+        xcodeproj_file = \
+          "{}/demo/osmeta/PlatformIntegration/PICatalog/PICatalog.xcodeproj".\
+          format(osmeta_root_dir)
+        xcodeproj_dir = os.path.dirname(xcodeproj_file)
+    else:
+        xcodeproj_file = args.project_file
+    xcodeproj_dir = os.path.dirname(xcodeproj_file)
+
+    if not os.path.exists(xcodeproj_file):
+        print("Can't find the xcode project file")
+        exit(1)
+    xcodeproj_basename = os.path.basename(xcodeproj_file)
+    if not xcodeproj_basename.endswith(".xcodeproj"):
+        print("The file {} doens't end with .xcodeproj, is it an xcode proj?".
+              format(xcodeproj_basename))
+        exit(1)
+    xcodeproj_name = xcodeproj_basename[0:-len(".xcodeproj")]
+    if args.compile:
+        subprocess.check_call([
+            "make {} sdk runtime".format(args.target)
+        ], shell=True, cwd=osmeta_root_dir)
+    build_type_prefixes = {
+        "Debug": "-Debug",
+        "CompactDebug": "-CompactDebug",
+        "NonCompactRelease": "-NonCompactRelease",
+        "Release": "",
+    }
+    platform_types = {
+        "Darwin-x86": {
+                        "platform_type": "osx",
+                        "architectype": "i386",
+                       },
+        "Darwin-x86_64": {
+                        "platform_type": "osx",
+                        "architectype": "x86_64",
+                       },
+        "WinStore-x86": {
+                        "platform_type": "winstore",
+                        "architectype": "i386",
+                       },
+        "WinStore-x86_64": {
+                        "platform_type": "winstore",
+                        "architectype": "x86_64",
+                       },
+        "WinDesktop-x86": {
+                        "platform_type": "windesktop",
+                        "architectype": "i386",
+                       },
+        "WinDesktop-x86_64": {
+                        "platform_type": "windesktop",
+                        "architectype": "x86_64",
+                       },
+    }
+    XCRUN = "{}/.xcsdk/bin/xcrun".format(os.environ['HOME'])
+    XCODEBUILD = "{}/.xcsdk/bin/xcbuild".format(os.environ['HOME'])
+
+    platform_name = args.target.split("/")[1]
+    build_type = args.target.split("/")[0]
+
+    osmeta_platform_type = platform_types[platform_name]["platform_type"]
+    osmeta_architecture = platform_types[platform_name]["architectype"]
+    osmeta_sdk = "osmeta-{}{}".format(osmeta_platform_type,
+                                      build_type_prefixes[build_type])
+    # build the app itself
+    if not args.no_compile_proj:
+        subprocess.check_call([
+            "\\rm -rf {}/{}-*".format(DERIVED_DATA_DIR, xcodeproj_name)
+        ], shell=True, cwd=xcodeproj_dir)
+        subprocess.check_call([
+            XCODEBUILD,
+            "-sdk",
+            osmeta_sdk,
+            "-arch",
+            osmeta_architecture,
+            "-configuration",
+            build_type,
+            "-project",
+            xcodeproj_basename,
+            "TOOLCHAINS=com.facebook.osmeta.stable.noasserts"
+        ], shell=False, cwd=xcodeproj_dir)
+
+    output_dir = os.path.join(xcodeproj_dir, "output")
+    output_app_file = subprocess.check_output([
+        "realpath $(find {}/{}-* -iname *.app)".
+        format(DERIVED_DATA_DIR, xcodeproj_name)
+    ], shell=True, cwd=xcodeproj_dir)
+    output_app_file = output_app_file.strip()
+
+    subprocess.check_call([
+        XCRUN,
+        "-n",
+        "--sdk",
+        osmeta_sdk,
+        "PackageApplication",
+        "--no-appx",
+        output_app_file,
+        "-o",
+        output_dir,
+    ], shell=False, cwd=xcodeproj_dir)
+    # make WinUAPEntry_runtime
+    subprocess.check_call([
+        "make {} WinUAPEntry_runtime".format(args.target)
+    ], shell=True, cwd=osmeta_root_dir)
+    subprocess.check_call([
+        "\cp -Rf {}/* {}/osmeta/platform/windows/WinUAPEntry/WinUAPEntry/".
+        format(output_dir, osmeta_root_dir)
+        ], shell=True)
+
+    osmeta_sdk_path = subprocess.check_output([
+        XCRUN,
+        "-n",
+        "--sdk",
+        osmeta_sdk,
+        "--show-sdk-path",
+    ]).strip()
+    from datetime import datetime
+    extracted_folder_name = "{}/tmp/EXTRACTED_{}".\
+                            format(os.environ["HOME"],
+                                   datetime.now().strftime("%A_%d_%B_%H_%M"))
+
+    with tempfile.NamedTemporaryFile('w+b') as zipped_appx:
+        subprocess.check_call(["mkdir -p {}".format(extracted_folder_name)],
+                              shell=True)
+        subprocess.check_call([
+            XCRUN,
+            "-n",
+            "--sdk",
+            osmeta_sdk,
+            "PackageApplication",
+            output_app_file,
+            "-c",
+            "{}/{}/Support/resources/WinUAPEntry_TemporaryKey.pfx".
+            format(osmeta_sdk_path, osmeta_architecture),
+            "--dev-installer",
+            "-o",
+            zipped_appx.name
+        ], shell=False)
+        subprocess.check_call([
+            "unzip -o {} -d {}".format(zipped_appx.name,
+                                       extracted_folder_name)], shell=True)
+
+        subprocess.check_call([
+            "{}/repos/osmeta/osmeta/tools/appx_unpack.py".format(os.environ["HOME"]),
+            "{}/App.appx".format(extracted_folder_name),
+            "{}/_appx_unpacked".format(extracted_folder_name),
+            ])
+
+
+def parse_args_and_package(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("target",
+                        help='a valid osmeta target such as Debug/Darwin-x86',)
+    parser.add_argument('-v', '--verbose',
+                        dest='verbose',
+                        action="store_true",
+                        help='print verbose output',
+                        default=False,
+                        required=False)
+    parser.add_argument('-c', '--compile',
+                        action="store_true",
+                        help="force compilation of sdk",
+                        default=False)
+    parser.add_argument('--no_compile_proj',
+                        action="store_true",
+                        help="skip compilation of xcodeproj if specified",
+                        default=False)
+    parser.add_argument('-p', '--project_file',
+                        help="specify the full path to the xcodeproj",
+                        default="")
+
+    args = parser.parse_args(argv)
+    doStuff(args)
+
+
+if __name__ == '__main__':
+    parse_args_and_package(sys.argv[1:])
