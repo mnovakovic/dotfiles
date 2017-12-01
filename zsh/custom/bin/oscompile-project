@@ -34,9 +34,12 @@ def doStuff(args):
               format(xcodeproj_basename))
         exit(1)
     xcodeproj_name = xcodeproj_basename[0:-len(".xcodeproj")]
-    if args.compile:
+    if args.compile_sdk:
         subprocess.check_call([
             "make {} sdk runtime".format(args.target)
+        ], shell=True, cwd=osmeta_root_dir)
+        subprocess.check_call([
+            "./osmeta/tools/dev-activate.sh"
         ], shell=True, cwd=osmeta_root_dir)
     build_type_prefixes = {
         "Debug": "-Debug",
@@ -175,15 +178,15 @@ def parse_args_and_package(argv):
                         help='print verbose output',
                         default=False,
                         required=False)
-    parser.add_argument('-c', '--compile',
+    parser.add_argument('--compile-sdk',
                         action="store_true",
                         help="force compilation of sdk",
                         default=False)
-    parser.add_argument('--no_compile_proj',
+    parser.add_argument('--no-compile-proj',
                         action="store_true",
                         help="skip compilation of xcodeproj if specified",
                         default=False)
-    parser.add_argument('-p', '--project_file',
+    parser.add_argument('-p', '--project-file',
                         help="specify the full path to the xcodeproj",
                         default="")
 
