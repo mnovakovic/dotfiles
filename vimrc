@@ -8,6 +8,8 @@ if filereadable(expand("~/.vimrc.before"))
   source ~/.vimrc.before
 endif
 
+let g:yadr_using_unsolarized_terminal = 1
+
 " ================ General Config ====================
 
 set number                      "Line numbers are good

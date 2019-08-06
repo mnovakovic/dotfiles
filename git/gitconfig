@@ -133,3 +133,9 @@
 	trustExitCode = true
 [user]
 	email = mnovakovic@fb.com
+	name = Marko Novakovic
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
