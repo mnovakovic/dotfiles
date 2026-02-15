@@ -101,7 +101,7 @@ task :install_vundle do
   puts ""
 
   vundle_path = File.join('vim','bundle', 'vundle')
-  unless File.exists?(vundle_path)
+  unless File.exist?(vundle_path)
     run %{
       cd $HOME/.yadr
       git clone https://github.com/gmarik/vundle.git #{vundle_path}
@@ -158,7 +158,7 @@ def install_homebrew
     puts "Installing Homebrew, the OSX package manager...If it's"
     puts "already installed, this will do nothing."
     puts "======================================================"
-    run %{ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"}
+    run %{bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"}
   end
 
   puts
@@ -173,7 +173,7 @@ def install_homebrew
   puts "Installing Homebrew packages...There may be some warnings."
   puts "======================================================"
   run %{brew install zsh ctags git hub tmux reattach-to-user-namespace the_silver_searcher ghi}
-  run %{brew install macvim --with-override-system-vim --with-lua --with-luajit}
+  run %{brew install macvim}
   puts
   puts
 end
@@ -197,7 +197,7 @@ def install_term_theme
   run %{ /usr/libexec/PlistBuddy -c "Merge 'iTerm2/Solarized Dark.itermcolors' :'Custom Color Presets':'Solarized Dark'" ~/Library/Preferences/com.googlecode.iterm2.plist }
 
   # If iTerm2 is not installed or has never run, we can't autoinstall the profile since the plist is not there
-  if !File.exists?(File.join(ENV['HOME'], '/Library/Preferences/com.googlecode.iterm2.plist'))
+  if !File.exist?(File.join(ENV['HOME'], '/Library/Preferences/com.googlecode.iterm2.plist'))
     puts "======================================================"
     puts "To make sure your profile is using the solarized theme"
     puts "Please check your settings under:"
@@ -262,11 +262,12 @@ def install_prezto
   run %{ ln -nfs "$HOME/.yadr/zsh/prezto" "${ZDOTDIR:-$HOME}/.zprezto" }
 
   # The prezto runcoms are only going to be installed if zprezto has never been installed
-  install_files(Dir.glob('zsh/prezto/runcoms/z*'), :symlink)
-
-  puts
-  puts "Overriding prezto ~/.zpreztorc with YADR's zpreztorc to enable additional modules..."
-  run %{ ln -nfs "$HOME/.yadr/zsh/prezto-override/zpreztorc" "${ZDOTDIR:-$HOME}/.zpreztorc" }
+  install_files(Dir.glob('zsh/prezto-override/zshrc'), :symlink)
+  install_files(Dir.glob('zsh/prezto/runcoms/zlogin'), :symlink)
+  install_files(Dir.glob('zsh/prezto/runcoms/zlogout'), :symlink)
+  install_files(Dir.glob('zsh/prezto-override/zpreztorc'), :symlink)
+  install_files(Dir.glob('zsh/prezto/runcoms/zprofile'), :symlink)
+  install_files(Dir.glob('zsh/prezto/runcoms/zshenv'), :symlink)
 
   puts
   puts "Creating directories for your customizations"
@@ -278,7 +279,7 @@ def install_prezto
     puts "Zsh is already configured as your shell of choice. Restart your session to load the new settings"
   else
     puts "Setting zsh as your default shell"
-    if File.exists?("/usr/local/bin/zsh")
+    if File.exist?("/usr/local/bin/zsh")
       if File.readlines("/private/etc/shells").grep("/usr/local/bin/zsh").empty?
         puts "Adding zsh to standard shell list"
         run %{ echo "/usr/local/bin/zsh" | sudo tee -a /private/etc/shells }
@@ -309,7 +310,7 @@ def install_files(files, method = :symlink)
     puts "Source: #{source}"
     puts "Target: #{target}"
 
-    if File.exists?(target) && (!File.symlink?(target) || (File.symlink?(target) && File.readlink(target) != source))
+    if File.exist?(target) && (!File.symlink?(target) || (File.symlink?(target) && File.readlink(target) != source))
       puts "[Overwriting] #{target}...leaving original at #{target}.backup..."
       run %{ mv "$HOME/.#{file}" "$HOME/.#{file}.backup" }
     end
@@ -320,25 +321,13 @@ def install_files(files, method = :symlink)
       run %{ cp -f "#{source}" "#{target}" }
     end
 
-    # Temporary solution until we find a way to allow customization
-    # This modifies zshrc to load all of yadr's zsh extensions.
-    # Eventually yadr's zsh extensions should be ported to prezto modules.
-    source_config_code = "for config_file ($HOME/.yadr/zsh/*.zsh) source $config_file"
-    if file == 'zshrc'
-      File.open(target, 'a+') do |zshrc|
-        if zshrc.readlines.grep(/#{Regexp.escape(source_config_code)}/).empty?
-          zshrc.puts(source_config_code)
-        end
-      end
-    end
-
     puts "=========================================================="
     puts
   end
 end
 
 def needs_migration_to_vundle?
-  File.exists? File.join('vim', 'bundle', 'tpope-vim-pathogen')
+  File.exist? File.join('vim', 'bundle', 'tpope-vim-pathogen')
 end
 
 
@@ -358,13 +347,13 @@ def apply_theme_to_iterm_profile_idx(index, color_scheme_path)
 end
 
 def success_msg(action)
-  puts ""
-  puts "   _     _           _         "
-  puts "  | |   | |         | |        "
-  puts "  | |___| |_____  __| | ____   "
-  puts "  |_____  (____ |/ _  |/ ___)  "
-  puts "   _____| / ___ ( (_| | |      "
-  puts "  (_______\_____|\____|_|      "
-  puts ""
+  puts %q{
+   _     _           _
+  | |   | |         | |
+  | |___| |_____  __| | ____
+  |_____  (____ |/ _  |/ ___)
+   _____| / ___ ( (_| | |
+  (_______\_____|\____|_|
+  }
   puts "YADR has been #{action}. Please restart your terminal and vim."
 end
